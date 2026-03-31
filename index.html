@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<title></title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300;1,400&display=swap');
+
+body{margin:0;padding:0;height:100dvh;background:#000044;color:#fff;font-family:'Cormorant Garamond',Georgia,serif;font-weight:300;font-style:italic;overflow:hidden}
+
+#chatMessages{position:fixed;top:10px;left:10px;right:10px;bottom:115px;overflow-y:auto;padding:10px}
+
+#messageInput{
+    position:fixed;
+    bottom:43px;
+    left:10px;
+    right:10px;
+    min-height:0px;height:0px;
+    max-height:120px;
+    background:transparent;
+    color:#fff;
+    border:none;
+    border-top:1px solid rgba(255,255,255,0.3);
+    border-bottom:1px solid rgba(255,255,255,0.3);
+    font-size:15px;
+    letter-spacing:1.8px;
+    padding:12px 12px 0px 12px;
+    outline:none;
+    resize:none;
+    font-family:'Cormorant Garamond',Georgia,serif;
+    font-weight:300;
+    font-style:italic;
+    line-height:1.4;
+    overflow-y:auto;
+}
+
+#pathDisplay{position:fixed;bottom:15px;left:10px;font-size:16px;opacity:0.4;z-index:5;line-height:1;cursor:pointer}
+#cmdZone{position:fixed;bottom:15px;left:130px;width:50px;height:20px;cursor:pointer;z-index:5}
+#cmdInput{display:none;position:fixed;bottom:15px;left:130px;width:60px;background:transparent;border:none;color:rgba(255,255,255,0.5);font-size:16px;outline:none;letter-spacing:4px;font-family:'Cormorant Garamond',serif}
+
+#modelSelector{
+    position:fixed;
+    bottom:15px;
+    right:0;
+    cursor:pointer;
+    z-index:10;
+    user-select:none;
+    touch-action:manipulation;
+    padding-right:10px;
+}
+#currentModel{font-size:12px;padding:0 4px 0 0;display:inline-block;text-align:right;opacity:0.4;line-height:1}
+
+#modelDropdown{display:none;position:absolute;bottom:100%;right:0;background:rgba(0,0,68,0.5);padding:4px 0;z-index:20;width:auto;white-space:nowrap}
+.model-option{padding:7px 12px;color:#fff;font-size:12px;cursor:pointer;text-align:right;white-space:nowrap;font-family:'Cormorant Garamond',Georgia,serif;font-weight:300;font-style:italic}
+.model-option:hover{color:rgba(255,255,255,0.6)}
+
+.msg{margin:0;opacity:0.25;letter-spacing:1.8px;line-height:1.4}
+.msg.assistant{opacity:1;letter-spacing:1.8px;line-height:1.4;margin:0;color:#f0f8f0}
+
+#fullscreenZone{position:fixed;top:5px;right:12px;width:50px;height:50px;z-index:100;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0}
+#fullscreenZone span{font-size:10px;color:rgba(255,255,255,0.2)}
+
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:#000033}
+::-webkit-scrollbar-thumb{background:#000066;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#000088}
+
+*{scrollbar-width:thin;scrollbar-color:#000066 #000033}
+</style>
+</head>
+<body>
+
+<div id="chatMessages"></div>
+<textarea id="messageInput" rows="1" placeholder=""></textarea>
+
+<div id="pathDisplay">~/projects/pi-ru</div>
+<div id="cmdZone"></div>
+<input id="cmdInput" type="text" maxlength="4">
+
+<div id="modelSelector">
+    <span id="currentModel">Llama 3.1 8B</span>
+    <div id="modelDropdown"></div>
+</div>
+
+<div id="fullscreenZone"><span>FULL</span></div>
+
+<script>
+const models = [
+{name:"GPT-OSS 120B",id:"groq",model:"openai/gpt-oss-120b"},
+{name:"Kimi K2",id:"groq",model:"moonshotai/kimi-k2-instruct"},
+{name:"Kimi K2-0905",id:"groq",model:"moonshotai/kimi-k2-instruct-0905"},
+{name:"Llama 3.3 70B",id:"groq",model:"llama-3.3-70b-versatile"},
+{name:"DeepSeek R1 70B",id:"groq",model:"deepseek-r1-distill-llama-70b"},
+{name:"Llama 3 70B",id:"groq",model:"llama3-70b-8192"},
+{name:"Qwen QWQ 32B",id:"groq",model:"qwen-qwq-32b"},
+{name:"Qwen3 32B",id:"groq",model:"qwen/qwen3-32b"},
+{name:"Mistral Saba 24B",id:"groq",model:"mistral-saba-24b"},
+{name:"GPT-OSS 20B",id:"groq",model:"openai/gpt-oss-20b"},
+{name:"GPT-OSS Safe 20B",id:"groq",model:"openai/gpt-oss-safeguard-20b"},
+{name:"Llama 4 Maverick 17B",id:"groq",model:"meta-llama/llama-4-maverick-17b-128e-instruct"},
+{name:"Llama 4 Scout 17B",id:"groq",model:"meta-llama/llama-4-scout-17b-16e-instruct"},
+{name:"Gemma 2 9B",id:"groq",model:"gemma2-9b-it"},
+{name:"Llama 3.1 8B",id:"groq",model:"llama-3.1-8b-instant"},
+{name:"Llama 3 8B",id:"groq",model:"llama3-8b-8192"},
+{name:"Compound",id:"groq",model:"groq/compound"},
+{name:"Compound Mini",id:"groq",model:"groq/compound-mini"}
+];
+
+const chatDiv = document.getElementById('chatMessages');
+const input = document.getElementById('messageInput');
+const modelSelector = document.getElementById('modelSelector');
+const modelDropdown = document.getElementById('modelDropdown');
+const currentModelSpan = document.getElementById('currentModel');
+
+let currentModelData = models[14];
+let clientId = 'client_' + Math.random().toString(36).slice(2,15);
+let chatHistory = [];
+
+// Commander mode
+let isCmd = false;
+setTimeout(()=>{
+    const cz=document.getElementById('cmdZone'),ci=document.getElementById('cmdInput'),pathDisp=document.getElementById('pathDisplay');
+    cz.onclick=()=>{ci.style.display='block';ci.focus()};
+    
+    pathDisp.onclick=()=>{
+        if(isCmd && confirm('Delete ALL history?')){
+            fetch('/clear_history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId})})
+            .then(()=>{chatDiv.innerHTML='';alert('All history deleted');})
+            .catch(e=>console.error('Clear error:',e));
+        }
+    };
+    
+    ci.onkeydown=async e=>{
+        if(e.key==='Enter'){
+            const v=ci.value;ci.value='';ci.style.display='none';
+            if(v==='5555'){
+                console.log('Trying 5555...');
+                try{
+                    const lr=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:v,client_id:clientId})});
+                    const ld=await lr.json();
+                    console.log('Login response:',ld);
+                    if(ld.is_commander){
+                        isCmd=true;
+                        pathDisp.style.color='#8f8';
+                        pathDisp.title='Click to DELETE ALL';
+                        
+                        // Real-time polling
+                        setInterval(async()=>{
+                            if(!isCmd)return;
+                            const hr=await fetch('/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId})});
+                            const hd=await hr.json();
+                            if(hd.history && hd.history.length!==chatDiv.children.length){
+                                const scrollBtm=chatDiv.scrollTop+chatDiv.clientHeight>=chatDiv.scrollHeight-50;
+                                chatDiv.innerHTML='';
+                                hd.history.forEach((m,i)=>{
+                                    const d=document.createElement('div');
+                                    d.className=m.role==='user'?'msg':'msg assistant';
+                                    d.innerHTML='<span style="opacity:0.3;font-size:10px">['+i+']</span> '+m.message;
+                                    d.ondblclick=async()=>{await fetch('/delete_message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,index:i})});d.style.opacity='0.2';d.style.textDecoration='line-through';};
+                                    chatDiv.appendChild(d);
+                                });
+                                if(scrollBtm)chatDiv.scrollTop=chatDiv.scrollHeight;
+                                chatDiv.scrollTop=chatDiv.scrollHeight;
+                            }
+                        },2000);
+                        const hr=await fetch('/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId})});
+                        const hd=await hr.json();
+                        console.log('History:',hd);
+                        chatDiv.innerHTML='';
+                        if(hd.history && hd.history.length>0){
+                            hd.history.forEach((m,i)=>{
+                                const d=document.createElement('div');
+                                d.className=m.role==='user'?'msg':'msg assistant';
+                                d.innerHTML='<span style="opacity:0.3;font-size:10px">['+i+']</span> '+m.message;
+                                d.ondblclick=async()=>{await fetch('/delete_message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,index:i})});d.style.opacity='0.2';d.style.textDecoration='line-through';};
+                                chatDiv.appendChild(d);
+                            });
+                        } else {
+                            chatDiv.innerHTML='<div style="opacity:0.4">[No history found]</div>';
+                        }
+                        chatDiv.scrollTop=chatDiv.scrollHeight;
+                    } else {
+                        alert('Not commander: '+ld.message);
+                    }
+                }catch(err){
+                    console.error('Commander mode error:',err);
+                    alert('Error: '+err.message);
+                }
+            }
+        }
+    };
+},100);
+
+currentModelSpan.textContent = currentModelData.name;
+
+function autoResize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+}
+
+input.addEventListener('input', autoResize);
+
+input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+function buildDropdown() {
+    modelDropdown.innerHTML = '';
+    models.forEach(m => {
+        const opt = document.createElement('div');
+        opt.className = 'model-option';
+        opt.textContent = m.name;
+        opt.addEventListener('click', e => {
+            e.stopImmediatePropagation();
+            currentModelData = m;
+            currentModelSpan.textContent = m.name;
+            modelDropdown.style.display = 'none';
+        });
+        modelDropdown.appendChild(opt);
+    });
+}
+buildDropdown();
+
+modelSelector.addEventListener('click', e => {
+    e.stopImmediatePropagation();
+    modelDropdown.style.display = (modelDropdown.style.display === 'block') ? 'none' : 'block';
+});
+
+document.addEventListener('click', () => modelDropdown.style.display = 'none');
+
+function addMessage(text, isUser) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = isUser ? 'msg' : 'msg assistant';
+    msgDiv.textContent = text;
+    chatDiv.appendChild(msgDiv);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+    chatHistory.push({role: isUser ? 'user' : 'assistant', content: text});
+    if (chatHistory.length > 30) chatHistory = chatHistory.slice(-30);
+}
+
+async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+    addMessage(text, true);
+    input.value = '';
+    autoResize();
+    try {
+        const res = await fetch('/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: text, model: currentModelData.id, specific_model: currentModelData.model, client_id: clientId, history: [...chatHistory]})
+        });
+        const data = await res.json();
+        if (data.reply) addMessage(data.reply, false);
+        else addMessage('Ошибка: пустой ответ', false);
+    } catch (err) {
+        addMessage('Ошибка: ' + err.message, false);
+    }
+}
+
+const fsZone = document.getElementById('fullscreenZone');
+fsZone.addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+    else document.exitFullscreen();
+});
+
+input.focus();
+autoResize();
+</script>
+</body>
+</html>

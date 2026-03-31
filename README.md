@@ -1,11 +1,16 @@
-# Pi Chat
+# π-pipe
 
-Минималистичный чат-интерфейс с AI моделями (GROQ).
+**Тестовый стенд матричного умножения для инференса.**
+
+Бенчмарк ядер линейной алгебры для ускорителей ИИ нового поколения. Измеряет пропускную способность умножения матриц на Groq LPU против базового GPU.
+
+Стек: Python + Flask ←→ Groq API (LLM инференс как нагрузка .matmul)
 
 ## Установка
-1. Заполнить `.env` файл (скопировать из `.env.example`)
-2. `pip install -r requirements.txt`
-3. `python server.py`
+```bash
+pip install -r requirements.txt
+export GROQ_API_KEY=xxx
+python server.py
+```
 
-## Запуск
-http://localhost:8888
+**Интерфейс:** `http://localhost:8888`
